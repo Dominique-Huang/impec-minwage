@@ -1,0 +1,102 @@
+# FINAL SCRIPT: Calculating minimum wages
+
+##### Here are the imports and excel pages #####
+
+import openpyxl
+import time
+from datetime import date, datetime
+
+from openpyxl import load_workbook
+wb = load_workbook(filename = 'Impec_WB_Admin_Example.xlsx')
+step1_clients = wb['Data_Clients']
+step2_rules = wb['Rules']
+step3_wages = wb['Data_Wage']
+
+
+##### Here are the 5 helper functions #####
+
+## HELPER FUNCTION 1: Identify the zone and city based on the client
+
+def step1Zone(): # need to find a way to make search function more fuzzy
+    """ This helper function will prompt the user for the client name and 
+    return a list with the zone and city ([Zone, City]) """
+    
+    for row in step1_clients.rows:
+        print row[0].value
+
+    testing = raw_input('Enter the client name from the list above: ')
+
+    for row in step1_clients.rows:
+        if testing in str(row[0].value):
+            zone = row[1].value
+            city = row[5].value
+            return [zone, city]
+
+def step2RowNum(step1Input):
+    """ This helper function will return a list of the row numbers with
+    the relevant rules for the client """
+    
+    zoneRows = []
+    for i in range(len(step2_rules.rows)):
+        if str(step1Input[0]) in str(step2_rules.rows[i][0].value):
+            zoneRows.append(i)
+    return zoneRows
+    
+def step2AHireDate(rowNum, hireDate):
+    """ This helper function will check the first parameter: if the 
+    hire date is within bounds """
+    
+    
+    dateMin = step2_rules.rows[rowNum][2].value.split(' < ')[0]
+    dateMax = step2_rules.rows[rowNum][2].value.split(' < ')[2]
+
+    newDateMin = time.strptime(dateMin, "%m/%d/%Y")
+    newDateMax = time.strptime(dateMax, "%m/%d/%Y")
+    newDateHire = time.strptime(hireDate, "%m/%d/%Y")
+
+    if newDateHire >= newDateMin and newDateHire <= newDateMax:
+        return True
+        
+def step2BSeniorityDate(rowNum, seniorityDate): # CHECK THIS SYNTAX; dependent on '365x' etc.
+    # what if it's equal to 365 * x? What's the rule?
+    # write out edge cases
+    
+    """ This helper function will check the second parameter: if the
+    seniority date is within bounds"""
+    
+
+    # this will calculate current date - seniority date
+    date_format = "%m/%d/%Y"
+    dateCurrent = datetime.strptime(date.today().strftime("%m/%d/%Y"), date_format)
+    dateSeniority = datetime.strptime(seniorityDate, date_format)
+    
+    currentMinusSeniority = dateCurrent - dateSeniority 
+    
+    # this will calculate the number of days in the rules (365 * x)
+    if '365x' in step2_rules.rows[rowNum][3].value.replace(" ",""):
+        dateComparison = 365 * int(step2_rules.rows[rowNum][3].value.split('x')[1])
+    #print currentMinusSeniority.days
+    #print dateComparison
+    
+    # this will compare current date - seniority date with the rule
+    if '>' in step2_rules.rows[rowNum][3].value:
+        return currentMinusSeniority.days > dateComparison
+    elif '<' in step2_rules.rows[rowNum][3].value:
+        return currentMinusSeniority.days < dateComparison
+        
+#def step2CStateAndCity(rowNum):
+    """ This helper function will check the third parameter: compare
+    state and city wages"""
+    
+    
+##### Here is the final function #####
+
+    
+def finalMinWage():
+    zoneCity = step1Zone()
+    rowNums = step2RowNum(zoneCity)
+    dateHire = raw_input("What is this employee's hiring date? (Please use this format: mo/da/year): ")
+    dateSen = raw_input("What is the employee's seniority date? (Please use this format: mo/da/year): ")
+    for i in rowNums:
+        if step2AHireDate(i, dateHire) and step2BSeniorityDate(i, dateSen):
+            print step2_rules.rows[i][5].value
